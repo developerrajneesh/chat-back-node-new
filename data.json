@@ -1,0 +1,39 @@
+{
+    "user": {
+        "userName": "hfhifh",
+        "userEmail": "hfhifh",
+        "userNumber": "hfhifh",
+        "userImg": "hfhifh",
+        "password": "hfhifh",
+        "token": [],
+        "isLogin": "hfhifh",
+        "otp": "hfhifh",
+        "oldpassword": "hfhifh",
+        "isAdmin": "hfhifh",
+        "isAccess": "hfhifh",
+        "loginhistory": [],
+        "accountStatus": "hfhifh",
+        "createdDate":"wr3r"
+    },
+    
+    "superAdmin": {
+        "superAdmin": "hfhifh",
+        "superEmail": "hfhifh",
+        "superNumber": "hfhifh",
+        "superImg": "hfhifh",
+        "password": "hfhifh",
+        "token": [],
+        "isLogin": "hfhifh",
+        "otp": "hfhifh",
+        "oldpassword": "hfhifh",
+        "isSuperAdmin": "hfhifh",
+        "createdDate":"wr3r"
+    },
+    "message": {
+        "chatId": "53453",
+        "userSenderId": "5353",
+        "userReceiverId": "5353",
+        "msg": "646wfwsscvs",
+        "messageDate":"wr3r"
+    }
+}
