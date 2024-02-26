@@ -1,12 +1,11 @@
 const express = require("express");
-const env = require("dotenv").config();
 const mongoose = require("mongoose");
 const app = express();
 const http = require("http");
 const cors = require("cors");
-const Message = require("./src/models/message.modal");
-const User = require("./src/models/user.model");
-const port = process.env.PORT || 4050;
+const MessageSchema = require("./src/models/message.modal");
+const UserSchema = require("./src/models/user.model");
+const port =  4050;
 
 const server = http.createServer(app);
 const io = require("socket.io")(server, {
@@ -30,15 +29,24 @@ app.use("/api/v1/message", require("./src/routes/message.route"));
 
 // io.on('connection', socket => {
 let usersData = [];
+let TypingUsersData = [];
+function checkSenderId(messages, senderIdToCheck) {
+  for (let i = 0; i < messages.length; i++) {
+      if (messages[i].senderId === senderIdToCheck) {
+          return true; // Sender ID found
+      }
+  }
+  return false; // Sender ID not found
+}
 io.on("connection", (socket) => {
 
   socket.on("senderdata", async (userId) => {
     try {
       const isSoketExist = usersData.find((user) => user.socketId === socket.id);
-      const isUserExist = usersData.find((user) => user.userId === userId);
+      // const isUserExist = usersData.find((user) => user.userId === userId);
       const newArr = usersData.filter(user => user.userId !== userId) 
 
-      console.log('=>>1',usersData, socket.id);
+      console.log('=>>1',usersData, socket.id); 
       if (!isSoketExist) {
         const user = { userId, socketId: socket.id };
         newArr.push(user);
@@ -48,10 +56,11 @@ io.on("connection", (socket) => {
         // io.emit('getUsers', users);
       }
       
-      const user = await User.findById(userId);
+      const user = await UserSchema.findById(userId);
+      console.log('user = >',user);
       socket?.emit("getsenderdata", user);
-      
-      console.log('=>>@',usersData, socket.id);
+      io.emit("ActiveUsers", usersData);
+   
     } catch (error) {
       console.log(error);
     }
@@ -59,9 +68,39 @@ io.on("connection", (socket) => {
 
   });
 
+
+
+
+
+
+  socket.on("typingUser", async (user) => {
+   
+    
+    if (!checkSenderId(TypingUsersData,user.senderId)) {
+      TypingUsersData.push(user)
+      const receiver = usersData.find(
+        (entry) => entry.userId == user.receiverId
+      );
+      io.to(receiver?.socketId).emit('GetTypingUsers',TypingUsersData)
+    }
+  })
+  socket.on("typingUserStop", async (user) => {
+    // if (!checkSenderId(TypingUsersData,user.senderId)) {
+      TypingUsersData =  TypingUsersData.filter(item => item.senderId !== user.senderId)
+      const receiver = usersData.find(
+        (entry) => entry.userId == user.receiverId
+      );
+      io.to(receiver?.socketId).emit('GetTypingUsers',TypingUsersData)
+    
+    // }
+  })
+
   socket.on("message", async (message) => {
+    // console.log(message);
     try {
-      const newMessage = new Message(message);
+      const newMessage = new MessageSchema(message);
+      console.log('newMessage =>',newMessage);
+      console.log('newMessage c=>',message);
       await newMessage.save();
       if (message.new) {
         await saveConversationId(
@@ -71,41 +110,48 @@ io.on("connection", (socket) => {
         await saveConversationId(message.userSenderId, message.conversationId);
       }
 
-      const messages = await Message.find({
+      const messages = await MessageSchema.find({
         conversationId: message.conversationId,
       });
 
-      const receiverID = usersData.find(
-        (user) => user.userId === message.userReceiverId
+      const receiverID = messages.find(
+        (user) => user.userReceiverId === message.userReceiverId
       );
 
-      const senderID = usersData.find(
-        (entry) => entry.userId === message.userSenderId
+      const receiver = usersData.find(
+        (entry) => entry.userId === message.userReceiverId
       );
 
-      console.log("User usersData", usersData,);
-        io.to(senderID?.socketId)
-        .to(receiverID?.socketId)
-        .emit("getmessage", messages);
-                
+          
+      if (receiver?.socketId) {
+        io.to(socket.id).to(receiver?.socketId).emit("getmessage", {messages:messages,receiverId:message.userReceiverId,senderId:message.userSenderId});
+      }else{
+        io.to(socket.id).to(receiver?.socketId).emit("getmessage", {messages:messages,receiverId:message.userReceiverId,senderId:message.userSenderId});
+      }
+      console.log('messages =>',messages);
+      socket.emit('getllUser')  
+      const user = await UserSchema.findById(message.userSenderId);
+      socket?.emit("getsenderdata", user);    
     } catch (error) {
       console.log(error);
     }
   });
         
   
-  socket.on('Userdisconnect', (userId) => {
+  socket.on('Userdisconnect', async (userId) => {
     usersData = usersData.filter(user => user.socketId !== socket.id);
-    // io.emit('getUsers', usersData);
-    console.log('a user has been left',userId,usersData);
+    const user = await UserSchema.findByIdAndUpdate(userId, {lastSeen:Date.now()}, { new: true, runValidators: true });
+    io.emit("ActiveUsers", usersData);
+    console.log('a user has been left',userId,user);  
+    io.emit('getllUser')      
 });
 
-  console.log('=====',usersData, socket.id);
+socket.emit('getllUser')
 });
 // })
 const saveConversationId = async (userId, conversationIds) => {
   try {
-    const user = await User.findById(userId);
+    const user = await UserSchema.findById(userId);
     if (!user) {
       return; // res.status(404).json({ error: "User not found" });
     }
@@ -122,7 +168,7 @@ const saveConversationId = async (userId, conversationIds) => {
 
 try {
   mongoose
-    .connect(process.env.mongodb_uri)
+    .connect('mongodb+srv://developerrajneeshshukla:developerrajneeshshukla@cluster0.g2znvz4.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0')
     .then(() => console.log("Connected to database successfully"))
     .catch((err) => console.log("Connection unsuccessfull", err));
 } catch (err) {
