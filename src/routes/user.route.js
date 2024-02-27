@@ -4,7 +4,8 @@ const {userRegister,userLogin, userGetAll,userGetSingleUser,userupdate,userDelet
 const  multerUpload  = require('../../utils/multerFile');
 router.get('/get-all',userGetAll)
 router.get('/getsingle/:id',userGetSingleUser)
-router.post('/register',multerUpload.single('userImg'),userRegister)
+router.post('/register',userRegister)
+// router.post('/register',multerUpload.single('userImg'),userRegister)
 router.post('/login',userLogin)
 router.put('/update/:id',userupdate)
 router.delete('/delete/:id',userDelete)
