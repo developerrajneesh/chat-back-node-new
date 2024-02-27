@@ -3,7 +3,7 @@ const User = require('../models/user.model')
 const  userRegister = async (req, res) => {
     try {
 
-const newdata = {...req.body,userImg:req.file. filename}
+const newdata = {...req.body}
 
 console.log(newdata);
         const newUser = new User(newdata);
