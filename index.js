@@ -1,11 +1,12 @@
 const express = require("express");
+const env = require("dotenv").config();
 const mongoose = require("mongoose");
 const app = express();
 const http = require("http");
 const cors = require("cors");
-const MessageSchema = require("./src/models/message.modal");
-const UserSchema = require("./src/models/user.model");
-const port =  4050;
+const Message = require("./src/models/message.modal");
+const User = require("./src/models/user.model");
+const port = process.env.PORT || 4050;
 
 const server = http.createServer(app);
 const io = require("socket.io")(server, {
@@ -43,7 +44,7 @@ io.on("connection", (socket) => {
   socket.on("senderdata", async (userId) => {
     try {
       const isSoketExist = usersData.find((user) => user.socketId === socket.id);
-      // const isUserExist = usersData.find((user) => user.userId === userId);
+      const isUserExist = usersData.find((user) => user.userId === userId);
       const newArr = usersData.filter(user => user.userId !== userId) 
 
       console.log('=>>1',usersData, socket.id); 
@@ -56,10 +57,10 @@ io.on("connection", (socket) => {
         // io.emit('getUsers', users);
       }
       
-      const user = await UserSchema.findById(userId);
-      console.log('user = >',user);
+      const user = await User.findById(userId);
       socket?.emit("getsenderdata", user);
       io.emit("ActiveUsers", usersData);
+      
    
     } catch (error) {
       console.log(error);
@@ -98,9 +99,7 @@ io.on("connection", (socket) => {
   socket.on("message", async (message) => {
     // console.log(message);
     try {
-      const newMessage = new MessageSchema(message);
-      console.log('newMessage =>',newMessage);
-      console.log('newMessage c=>',message);
+      const newMessage = new Message(message);
       await newMessage.save();
       if (message.new) {
         await saveConversationId(
@@ -110,7 +109,7 @@ io.on("connection", (socket) => {
         await saveConversationId(message.userSenderId, message.conversationId);
       }
 
-      const messages = await MessageSchema.find({
+      const messages = await Message.find({
         conversationId: message.conversationId,
       });
 
@@ -128,9 +127,8 @@ io.on("connection", (socket) => {
       }else{
         io.to(socket.id).to(receiver?.socketId).emit("getmessage", {messages:messages,receiverId:message.userReceiverId,senderId:message.userSenderId});
       }
-      console.log('messages =>',messages);
       socket.emit('getllUser')  
-      const user = await UserSchema.findById(message.userSenderId);
+      const user = await User.findById(message.userSenderId);
       socket?.emit("getsenderdata", user);    
     } catch (error) {
       console.log(error);
@@ -140,7 +138,7 @@ io.on("connection", (socket) => {
   
   socket.on('Userdisconnect', async (userId) => {
     usersData = usersData.filter(user => user.socketId !== socket.id);
-    const user = await UserSchema.findByIdAndUpdate(userId, {lastSeen:Date.now()}, { new: true, runValidators: true });
+    const user = await User.findByIdAndUpdate(userId, {lastSeen:Date.now()}, { new: true, runValidators: true });
     io.emit("ActiveUsers", usersData);
     console.log('a user has been left',userId,user);  
     io.emit('getllUser')      
@@ -151,7 +149,7 @@ socket.emit('getllUser')
 // })
 const saveConversationId = async (userId, conversationIds) => {
   try {
-    const user = await UserSchema.findById(userId);
+    const user = await User.findById(userId);
     if (!user) {
       return; // res.status(404).json({ error: "User not found" });
     }
@@ -168,7 +166,7 @@ const saveConversationId = async (userId, conversationIds) => {
 
 try {
   mongoose
-    .connect('mongodb+srv://developerrajneeshshukla:developerrajneeshshukla@cluster0.g2znvz4.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0')
+    .connect(process.env.mongodb_uri)
     .then(() => console.log("Connected to database successfully"))
     .catch((err) => console.log("Connection unsuccessfull", err));
 } catch (err) {
